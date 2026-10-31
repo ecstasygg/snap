@@ -122,6 +122,9 @@ def main():
     ]:
         check(message in cli("assemble", "-", text=text, ok=False), message)
     check("16-bit range" in cli("assemble", "examples/overflow.span", ok=False), "overflow accepted")
+    check("65536 instructions, 65536 bytes" in cli("assemble", "-", text="nop\n" * 65536), "maximum line count")
+    check("invalid instruction at line 4097" in cli("assemble", "-", text="nop\n" * 4096 + "invalid\npad -1", ok=False), "first parse error changed")
+    check("undefined label first" in cli("assemble", "-", text="pad 3\njmp first\njmp second", ok=False), "first resolution error changed")
     for padding, width in [(127, 2), (128, 3), (32767, 3)]:
         report = cli("assemble", "-", text=f"jmp end\npad {padding}\nlabel end\nhalt")
         check(f"{padding + width + 1} bytes" in report, "forward range boundary")
