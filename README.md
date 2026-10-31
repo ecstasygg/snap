@@ -1,5 +1,3 @@
-# Span
-
 Span implements a branch relaxing assembler in Isabelle/HOL, with proofs of termination, minimum layout size and execution correspondence for a bytecode machine with signed 8-bit and 16-bit relative branches
 
 [![](media/demo.gif)](media/demo.mp4)

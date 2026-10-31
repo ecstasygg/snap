@@ -53,6 +53,23 @@ theorem decode_encode:
   by (cases op)
     (auto simp: byte_join nat_less_iff div_less_iff_less_mult split: bool.splits if_splits)
 
+theorem decode_canonical:
+  "decode bs = Some (op, rest) \<Longrightarrow> encodable op \<and> bs = encode op @ rest"
+  by (cases bs)
+    (auto simp: nat_less_iff div_less_iff_less_mult mod_less div_eq_0_iff
+      nat_add_distrib nat_mult_distrib
+      split: if_splits list.splits)
+
+corollary decode_progress:
+  "decode bs = Some (op, rest) \<Longrightarrow> length rest < length bs"
+  using decode_canonical[of bs op rest]
+  by (cases op) (auto split: bool.splits)
+
+theorem encode_injective:
+  "encodable a \<Longrightarrow> encodable b \<Longrightarrow> encode a = encode b \<longleftrightarrow> a = b"
+  using decode_encode[of a "[]"] decode_encode[of b "[]"]
+  by (metis append_Nil option.inject prod.inject)
+
 fun lower :: "nat instruction list \<Rightarrow> nat set \<Rightarrow> nat \<Rightarrow> nat instruction \<Rightarrow> operation" where
   "lower p W i Nop = Idle"
 | "lower p W i Inc = Raise"

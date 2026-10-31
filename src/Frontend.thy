@@ -8,6 +8,9 @@ fun bind :: "'a result \<Rightarrow> ('a \<Rightarrow> 'b result) \<Rightarrow> 
   "bind (Error e) f = Error e"
 | "bind (Ok x) f = f x"
 
+lemma bind_assoc: "bind (bind r f) g = bind r (\<lambda>x. bind (f x) g)"
+  by (cases r) auto
+
 function decimal :: "nat \<Rightarrow> string" where
   "decimal n = (if n < 10 then [char_of_nat (48 + n)] else decimal (n div 10) @ [char_of_nat (48 + n mod 10)])"
   by pat_completeness auto
@@ -47,6 +50,20 @@ fun parse_lines :: "nat \<Rightarrow> string list \<Rightarrow> statement list r
 | "parse_lines n (s # ss) = bind (parse_line n (words s)) (\<lambda>xs.
     bind (parse_lines (Suc n) ss) (\<lambda>ys. Ok (xs @ ys)))"
 
+fun parse_acc :: "nat \<Rightarrow> string list \<Rightarrow> statement list \<Rightarrow> statement list result" where
+  "parse_acc n [] acc = Ok (rev acc)"
+| "parse_acc n (s # ss) acc = (case parse_line n (words s) of Error e \<Rightarrow> Error e
+    | Ok xs \<Rightarrow> parse_acc (Suc n) ss (rev xs @ acc))"
+
+lemma parse_acc_correct:
+  "parse_acc n ss acc = bind (parse_lines n ss) (\<lambda>xs. Ok (rev acc @ xs))"
+  by (induction ss arbitrary: n acc) (auto simp: bind_assoc split: result.splits)
+
+declare parse_lines.simps [code drop]
+
+lemma parse_lines_code [code]: "parse_lines n ss = parse_acc n ss []"
+  by (cases "parse_lines n ss") (simp_all add: parse_acc_correct)
+
 fun count :: "statement \<Rightarrow> nat" where
   "count (Label l) = 0"
 | "count (Emit op) = 1"
@@ -72,6 +89,28 @@ fun resolve_all :: "(string \<times> nat) list \<Rightarrow> statement list \<Ri
 | "resolve_all env (Emit op # ss) = bind (resolve env op) (\<lambda>x.
     bind (resolve_all env ss) (\<lambda>xs. Ok (x # xs)))"
 | "resolve_all env (Pad n # ss) = bind (resolve_all env ss) (\<lambda>xs. Ok (replicate n Nop @ xs))"
+
+fun resolve_acc :: "(string \<times> nat) list \<Rightarrow> statement list \<Rightarrow> nat instruction list \<Rightarrow> nat instruction list result" where
+  "resolve_acc env [] acc = Ok (rev acc)"
+| "resolve_acc env (Label l # ss) acc = resolve_acc env ss acc"
+| "resolve_acc env (Emit op # ss) acc = (case resolve env op of Error e \<Rightarrow> Error e
+    | Ok x \<Rightarrow> resolve_acc env ss (x # acc))"
+| "resolve_acc env (Pad n # ss) acc = resolve_acc env ss (replicate n Nop @ acc)"
+
+lemma resolve_acc_correct:
+  "resolve_acc env ss acc = bind (resolve_all env ss) (\<lambda>xs. Ok (rev acc @ xs))"
+proof (induction ss arbitrary: acc)
+  case Nil
+  then show ?case by simp
+next
+  case (Cons s ss)
+  then show ?case by (cases s) (auto simp: bind_assoc split: result.splits)
+qed
+
+declare resolve_all.simps [code drop]
+
+lemma resolve_all_code [code]: "resolve_all env ss = resolve_acc env ss []"
+  by (cases "resolve_all env ss") (simp_all add: resolve_acc_correct)
 
 definition source :: "string \<Rightarrow> nat instruction list result" where
   "source s = (if \<not> list_all (\<lambda>c. let n = nat_of_char c in
@@ -197,5 +236,16 @@ definition process :: "string list \<Rightarrow> string \<Rightarrow> bool \<tim
   "process args s = (case source s of Error e \<Rightarrow> (False, e @ newline) | Ok p \<Rightarrow>
     case checked p of Error e \<Rightarrow> (False, (if args = [''trace''] then trace p else []) @ e @ newline)
     | Ok bs \<Rightarrow> inspect args p bs)"
+
+definition artifact :: "string \<Rightarrow> (bool \<times> string) \<times> string" where
+  "artifact s = (case source s of Error e \<Rightarrow> ((False, e @ newline), e @ newline)
+    | Ok p \<Rightarrow> case checked p of Error e \<Rightarrow> ((False, e @ newline), e @ newline)
+    | Ok bs \<Rightarrow> ((True, map char_of_nat bs), summary p bs @ hex bs @ newline))"
+
+theorem artifact_binary: "fst (artifact s) = binary s"
+  by (auto simp: artifact_def binary_def compile_def split: result.splits)
+
+theorem artifact_report: "(fst (fst (artifact s)), snd (artifact s)) = process [''assemble''] s"
+  by (auto simp: artifact_def process_def inspect_def Let_def split: result.splits)
 
 end

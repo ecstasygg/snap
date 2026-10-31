@@ -59,6 +59,16 @@ lemma truncated_rejected: "decode [18,1] = None"
 lemma unknown_rejected: "decode [255] = None"
   by eval
 
+lemma short_payload_rejected: "decode [16,256] = None"
+  by eval
+
+lemma long_payload_rejected: "decode [19,0,256] = None"
+  by eval
+
+lemma decoder_preserves_tail:
+  "decode [19,255,255,3,255] = Some (Branch True True 32767, [3,255])"
+  by eval
+
 lemma undefined_rejected:
   "compile ''jmp missing'' = Error ''undefined label missing''"
   by eval
