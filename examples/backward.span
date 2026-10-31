@@ -1,0 +1,4 @@
+label start
+pad 127
+jmp start
+halt

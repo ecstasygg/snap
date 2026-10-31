@@ -1,0 +1,4 @@
+jmp end
+pad 32768
+label end
+halt

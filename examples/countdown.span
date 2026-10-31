@@ -1,0 +1,9 @@
+inc
+inc
+inc
+label loop
+dec
+jz done
+jmp loop
+label done
+halt

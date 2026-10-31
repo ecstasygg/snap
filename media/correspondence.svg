@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="258" viewBox="0 0 860 258" role="img" aria-labelledby="title description">
+  <title id="title">Execution correspondence</title>
+  <desc id="description">For a well-formed program, valid layout W and source index i at most the program length, relocation commutes with fuel-bounded execution. S and B denote source and bytecode execution. R maps the source index to its byte address and preserves the accumulator</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L7 4 L1 7" fill="none" stroke="#292929" stroke-width="0.8"/>
+    </marker>
+  </defs>
+  <rect width="860" height="258" fill="#fff"/>
+  <g fill="#202020" font-family="Latin Modern Roman, STIX Two Text, Times New Roman, serif" text-anchor="middle">
+    <text x="430" y="25" font-size="16">wellformed p &#183; valid p W &#183; i &#8804; |p|</text>
+    <g font-size="23" font-style="italic">
+      <text x="195" y="75">s</text>
+      <text x="645" y="75">R<tspan baseline-shift="sub" font-size="15">W</tspan>(s)</text>
+      <text x="195" y="197">S<tspan baseline-shift="super" font-size="15">k</tspan>(s)</text>
+      <text x="645" y="197">B<tspan baseline-shift="super" font-size="15">k</tspan>(R<tspan baseline-shift="sub" font-size="15">W</tspan>(s))</text>
+    </g>
+    <g font-size="20" font-style="italic">
+      <text x="420" y="57">R<tspan baseline-shift="sub" font-size="13">W</tspan></text>
+      <text x="420" y="178">R<tspan baseline-shift="sub" font-size="13">W</tspan></text>
+      <text x="168" y="139">S<tspan baseline-shift="super" font-size="13">k</tspan></text>
+      <text x="675" y="139">B<tspan baseline-shift="super" font-size="13">k</tspan></text>
+    </g>
+    <text x="430" y="242" font-size="18" font-style="italic">s = (i, a) &#160;&#160; R<tspan baseline-shift="sub" font-size="12">W</tspan>(i, a) = (addr<tspan baseline-shift="sub" font-size="12">W</tspan>(i), a)</text>
+  </g>
+  <g fill="none" stroke="#292929" stroke-width="0.8" marker-end="url(#arrow)">
+    <path d="M246 68 H568"/>
+    <path d="M274 190 H538"/>
+    <path d="M195 93 V165"/>
+    <path d="M645 93 V165"/>
+  </g>
+</svg>

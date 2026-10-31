@@ -1,0 +1,8 @@
+jmp near
+jmp far
+pad 125
+label near
+nop
+pad 2
+label far
+halt
