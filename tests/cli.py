@@ -1,6 +1,10 @@
 import itertools
+import os
 from pathlib import Path
 import random
+import resource
+import signal
+import stat
 import subprocess
 import tempfile
 
@@ -16,7 +20,7 @@ def check(condition, message):
     CHECKS += 1
 
 
-def cli(*args, text=None, ok=True):
+def cli(*args, text=None, ok=True, preexec_fn=None):
     result = subprocess.run(
         [str(ROOT / "span"), *map(str, args)],
         input=text,
@@ -24,9 +28,15 @@ def cli(*args, text=None, ok=True):
         capture_output=True,
         timeout=90,
         cwd=ROOT,
+        preexec_fn=preexec_fn,
     )
     check((result.returncode == 0) == ok, (args, result.stdout, result.stderr))
     return result.stdout if ok else result.stderr
+
+
+def restrict_output():
+    signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (1, 1))
 
 
 def source(program):
@@ -162,6 +172,51 @@ def main():
         check(out.read_bytes() == b"preserve", "failed assembly clobbered output")
         cli("assemble", "-", "-o", out, text="")
         check(out.read_bytes() == b"", "empty binary output")
+        out.write_bytes(b"preserve")
+        before = set(Path(directory).iterdir())
+        cli("assemble", "examples/countdown.span", "-o", out, ok=False, preexec_fn=restrict_output)
+        check(out.read_bytes() == b"preserve", "failed write clobbered output")
+        check(set(Path(directory).iterdir()) == before, "failed write leaked temporary file")
+        destination = Path(directory) / "destination"
+        destination.mkdir()
+        before = set(Path(directory).iterdir())
+        cli("assemble", "examples/countdown.span", "-o", destination, ok=False)
+        check(destination.is_dir(), "failed rename replaced directory")
+        check(set(Path(directory).iterdir()) == before, "failed rename leaked temporary file")
+        same = Path(directory) / "source"
+        same.write_text("inc\nhalt\n")
+        cli("assemble", same, "-o", same)
+        check(same.read_bytes() == bytes([1, 3]), "assembly cannot replace its source")
+        link = Path(directory) / "link"
+        link.symlink_to(out)
+        cli("assemble", "-", "-o", link, text="halt")
+        check(out.read_bytes() == b"preserve", "output followed destination symlink")
+        check(not link.is_symlink() and link.read_bytes() == bytes([3]), "symlink not atomically replaced")
+        out.write_bytes(b"".join(bytes([18, n, 255 - n]) for n in range(256)) + bytes([3]))
+        listing = cli("disassemble", out)
+        raw = subprocess.run(
+            [str(ROOT / "span"), "disassemble", "-"],
+            input=out.read_bytes(), capture_output=True, timeout=90, cwd=ROOT,
+        )
+        check(raw.returncode == 0 and raw.stdout == listing.encode("ascii"), "binary stdin changed bytes")
+        check(len(listing.splitlines()) == 257, "binary file changed bytes")
+        out.write_bytes(bytes(1048577))
+        check("input exceeds 1 MiB" in cli("disassemble", out, ok=False), "binary size limit missing")
+        check("input exceeds 1 MiB" in cli("assemble", "-", text=" " * 1048577, ok=False), "stdin size limit missing")
+        out.chmod(0o600)
+        cli("assemble", "-", "-o", out, text="halt", preexec_fn=lambda: os.umask(0))
+        check(stat.S_IMODE(out.stat().st_mode) == 0o600, "replacement widened output permissions")
+        protected = Path(directory) / "protected"
+        protected.write_bytes(b"preserve")
+
+        def collide_output():
+            out.with_name(f".{out.name}.{os.getpid():X}.0").symlink_to(protected)
+
+        cli("assemble", "-", "-o", out, text="inc\nhalt", preexec_fn=collide_output)
+        check(out.read_bytes() == bytes([1, 3]), "temporary collision prevented output")
+        check(protected.read_bytes() == b"preserve", "temporary collision followed symlink")
+        collisions = list(Path(directory).glob(f".{out.name}.*"))
+        check(len(collisions) == 1 and collisions[0].is_symlink(), "temporary collision was removed or output leaked")
     print(f"{CHECKS} checks passed, including 36 exhaustive layout comparisons")
 
 
