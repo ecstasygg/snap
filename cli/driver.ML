@@ -35,13 +35,12 @@ fun run args =
   | ["disassemble", file] => output (Span.disassemble (chars (read file)))
   | ["assemble", file, "-o", destination] =>
       let
-        val input = chars (read file)
-        val (ok, bytes) = Span.binary input
+        val ((ok, bytes), report) = Span.artifact (chars (read file))
       in
         if ok then
           (write destination (text bytes);
-           output (Span.process [chars "assemble"] input))
-        else output (false, bytes)
+           output (true, report))
+        else output (false, report)
       end
   | ["run", file] => output (Span.process (map chars ["run", "4096"]) (chars (read file)))
   | ["run", file, fuel] => output (Span.process (map chars ["run", fuel]) (chars (read file)))

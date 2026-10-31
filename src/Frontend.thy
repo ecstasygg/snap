@@ -237,4 +237,15 @@ definition process :: "string list \<Rightarrow> string \<Rightarrow> bool \<tim
     case checked p of Error e \<Rightarrow> (False, (if args = [''trace''] then trace p else []) @ e @ newline)
     | Ok bs \<Rightarrow> inspect args p bs)"
 
+definition artifact :: "string \<Rightarrow> (bool \<times> string) \<times> string" where
+  "artifact s = (case source s of Error e \<Rightarrow> ((False, e @ newline), e @ newline)
+    | Ok p \<Rightarrow> case checked p of Error e \<Rightarrow> ((False, e @ newline), e @ newline)
+    | Ok bs \<Rightarrow> ((True, map char_of_nat bs), summary p bs @ hex bs @ newline))"
+
+theorem artifact_binary: "fst (artifact s) = binary s"
+  by (auto simp: artifact_def binary_def compile_def split: result.splits)
+
+theorem artifact_report: "(fst (fst (artifact s)), snd (artifact s)) = process [''assemble''] s"
+  by (auto simp: artifact_def process_def inspect_def Let_def split: result.splits)
+
 end

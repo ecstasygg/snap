@@ -148,7 +148,8 @@ def main():
             expected = rows[pc][0] if pc < length else len(out.read_bytes())
             report = cli("run", "-", "256", text=text)
             check(f"pc={expected}  acc={acc}\n" in report, f"execution mismatch in case {case}")
-        cli("assemble", "examples/countdown.span", "-o", out)
+        report = cli("assemble", "examples/countdown.span", "-o", out)
+        check(report == cli("assemble", "examples/countdown.span"), "binary report changed")
         check(out.read_bytes() == bytes([1, 1, 1, 2, 17, 130, 16, 123, 3]), "binary output")
         check("jmp.8 -5" in cli("disassemble", out), "binary disassembly")
         out.write_bytes(bytes([18, 0]))
@@ -156,8 +157,11 @@ def main():
         out.write_bytes(bytes([255]))
         check("invalid encoding" in cli("disassemble", out, ok=False), "unknown opcode accepted")
         out.write_bytes(b"preserve")
-        cli("assemble", "-", "-o", out, text="jmp missing", ok=False)
+        error = cli("assemble", "-", "-o", out, text="jmp missing", ok=False)
+        check(error == cli("assemble", "-", text="jmp missing", ok=False), "binary error changed")
         check(out.read_bytes() == b"preserve", "failed assembly clobbered output")
+        cli("assemble", "-", "-o", out, text="")
+        check(out.read_bytes() == b"", "empty binary output")
     print(f"{CHECKS} checks passed, including 36 exhaustive layout comparisons")
 
 
